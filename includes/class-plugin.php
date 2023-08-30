@@ -52,13 +52,46 @@ class Plugin {
 		if ( empty( $track['mbid'] ) ) {
 			// MusicBrainz ID unknown, because not all scrobblers include one and
 			// because certain rarer releases or tracks don't have one.
-			error_log( '[Scrobbble Add-On] Missing track MBID.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( '[Scrobbble Add-On] Missing track MBID. Attempting to search for one.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+			$title  = urlencode( strtolower( $track['title'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.urlencode_urlencode
+			$artist = urlencode( strtolower( $track['artist'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.urlencode_urlencode
+			$album  = urlencode( strtolower( $track['album'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.urlencode_urlencode
+
+			$response = wp_safe_remote_get(
+				// So, I *think* this type of query oughta give us somewhat reliable results. Except maybe if MB doesn't know about the track.
+				esc_url_raw( "https://musicbrainz.org/ws/2/recording?query=work:{$title}+release:{$album}+artist:{$artist}&limit=1&fmt=json" ),
+				array(
+					'user-agent' => 'ScrobbbleForWordPress +' . home_url( '/' ),
+				)
+			);
+
+			if ( ! empty( $response['body'] ) ) {
+				$data = json_decode( $response['body'], true );
+			}
+
+			if (
+				! empty( $data['recordings'][0]['id'] ) &&
+				! empty( $data['recordings'][0]['title'] ) &&
+				preg_replace( '~[^A-Za-z0-9]~', '', $data['recordings'][0]['title'] ) === preg_replace( '~[^A-Za-z0-9]~', '', $track['title'] ) && // Strip away, e.g., curly quotes, etc.
+				! empty( $data['recordings'][0]['artist-credit'][0]['name'] ) &&
+				preg_replace( '~[^A-Za-z0-9]~', '', $data['recordings'][0]['artist-credit'][0]['name'] ) === preg_replace( '~[^A-Za-z0-9]~', '', $track['artist'] ) // Still overly strict because what if there are multiple artists, etc.?
+			) {
+				// If we got a result and the artist and track title are a near exact match.
+				$track['mbid'] = $data['recordings'][0]['id']; // Use this as the track's MBID, at least temporarily.
+			} else {
+				error_log( '[Scrobbble Add-On] Could not find a recording MBID.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			}
+		}
+
+		if ( empty( $track['mbid'] ) ) {
+			// Still empty.
 			return;
 		}
 
 		error_log( '[Scrobbble Add-On] Getting genre information from MusicBrainz.org.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 
-		// Get the genres, if any, and releases this track was featured on.
+		// Get the genres, if any,for this track. Note that these can be quite generic; some (but not all?) tracks have more accurate genre info in their tags.
 		$response = wp_safe_remote_get(
 			esc_url_raw( "https://musicbrainz.org/ws/2/recording/{$track['mbid']}?fmt=json&inc=genres" ),
 			array(
