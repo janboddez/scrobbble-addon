@@ -39,7 +39,7 @@ class Plugin {
 		add_action( 'scrobbble_save_track', array( $this, 'add_genres' ), 10, 2 );
 		add_action( 'scrobbble_save_track', array( $this, 'add_release_meta' ), 10, 2 );
 
-		add_action( 'scrobbble_fetch_cover_art', array( $this, 'fetch_cover_art' ), 10, 2 );
+		add_action( 'scrobbble_fetch_cover_art', array( $this, 'fetch_cover_art' ), 10, 3 );
 	}
 
 	/**
@@ -142,7 +142,7 @@ class Plugin {
 			update_post_meta( $post_id, 'scrobbble_album_mbid', $album_mbid );
 
 			// Fetch cover art.
-			wp_schedule_single_event( time(), 'scrobbble_fetch_cover_art', array( $album_mbid, $hash ) );
+			wp_schedule_single_event( time(), 'scrobbble_fetch_cover_art', array( $album_mbid, $hash, $post_id ) );
 		}
 	}
 
@@ -151,8 +151,9 @@ class Plugin {
 	 *
 	 * @param string $album_mbid Album (or release) MBID.
 	 * @param string $hash       Filename, sans extension.
+	 * @param int    $post_id    (Optional) post ID.
 	 */
-	public function fetch_cover_art( $album_mbid, $hash ) {
+	public function fetch_cover_art( $album_mbid, $hash, $post_id = 0 ) {
 		error_log( '[Scrobbble Add-On] Trying to fetch cover art.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 
 		if ( empty( $album_mbid ) ) {
@@ -254,9 +255,10 @@ class Plugin {
 				error_log( '[Scrobbble Add-On] Attempting to download the file at ' . $cover_art . '.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				$local_url = $this->store_image( $cover_art, $filename, 'scrobbble-art' );
 
-				if ( empty( $local_url ) ) {
+				if ( ! empty( $local_url ) && 0 !== $post_id ) {
+					update_post_meta( $post_id, 'scrobbble_cover_art', $local_url );
+				} else {
 					error_log( '[Scrobbble Add-On] Could not download cover art.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-					return;
 				}
 			}
 		}
