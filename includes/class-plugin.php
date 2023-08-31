@@ -58,13 +58,13 @@ class Plugin {
 			// because certain rarer releases or tracks don't have one.
 			error_log( '[Scrobbble Add-On] Missing track MBID. Attempting to search for one.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 
-			$title  = urlencode( strtolower( $track['title'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.urlencode_urlencode
-			$artist = urlencode( strtolower( $track['artist'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.urlencode_urlencode
-			$album  = urlencode( strtolower( $track['album'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.urlencode_urlencode
+			$title  = rawurlencode( strtolower( $track['title'] ) );
+			$artist = rawurlencode( strtolower( $track['artist'] ) );
+			$album  = rawurlencode( strtolower( $track['album'] ) );
 
 			$response = wp_safe_remote_get(
 				// So, I *think* this type of query oughta give us somewhat reliable results. Except maybe if MB doesn't know about the track.
-				esc_url_raw( "https://musicbrainz.org/ws/2/recording?query=work:{$title}+release:{$album}+artist:{$artist}&limit=1&fmt=json" ),
+				esc_url_raw( "https://musicbrainz.org/ws/2/recording?query=work:{$title}%20AND%20release:{$album}%20AND%20artist:{$artist}&limit=1&fmt=json" ),
 				array(
 					'user-agent' => 'ScrobbbleForWordPress +' . home_url( '/' ),
 				)
