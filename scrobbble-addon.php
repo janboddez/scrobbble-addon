@@ -20,6 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require __DIR__ . '/includes/class-blocks.php';
 require __DIR__ . '/includes/class-plugin.php';
 
 Plugin::get_instance()

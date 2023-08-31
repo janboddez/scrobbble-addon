@@ -2,7 +2,7 @@
 /**
  * Actual plugin logic.
  *
- * @package Scrobbble\Notes
+ * @package Scrobbble\AddOn
  */
 
 namespace Scrobbble\AddOn;
@@ -11,6 +11,8 @@ namespace Scrobbble\AddOn;
  * Main plugin class.
  */
 class Plugin {
+	const  PLUGIN_VERSION = '0.1.0';
+
 	/**
 	 * This class's single instance.
 	 *
@@ -40,6 +42,8 @@ class Plugin {
 		add_action( 'scrobbble_save_track', array( $this, 'add_release_meta' ), 10, 2 );
 
 		add_action( 'scrobbble_fetch_cover_art', array( $this, 'fetch_cover_art' ), 10, 3 );
+
+		Blocks::register();
 	}
 
 	/**
@@ -67,6 +71,7 @@ class Plugin {
 			);
 
 			if ( ! empty( $response['body'] ) ) {
+				error_log( print_r( $response['body'], true ) );
 				$data = json_decode( $response['body'], true );
 			}
 
@@ -100,6 +105,7 @@ class Plugin {
 		);
 
 		if ( ! empty( $response['body'] ) ) {
+			error_log( print_r( $response['body'], true ) );
 			$data = json_decode( $response['body'], true );
 		} else {
 			error_log( '[Scrobbble Add-On] Something went wrong.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
@@ -109,7 +115,7 @@ class Plugin {
 
 		// Tag the post with genre information.
 		if ( ! empty( $data['genres'] ) && is_array( $data['genres'] ) ) {
-			error_log( '[Scrobbble Add-On] Adding ' . count( $data['genres'] ) . ' genres.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( '[Scrobbble Add-On] Adding ' . count( $data['genres'] ) . ' genre(s).' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 
 			$genres = array_column( $data['genres'], 'name' );
 
@@ -220,6 +226,7 @@ class Plugin {
 		*/
 
 		if ( ! empty( $response['body'] ) ) {
+			error_log( print_r( $response['body'], true ) );
 			$data = json_decode( $response['body'], true );
 		} else {
 			error_log( '[Scrobbble Add-On] Something went wrong.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
