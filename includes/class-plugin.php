@@ -78,12 +78,14 @@ class Plugin {
 			if (
 				! empty( $data['recordings'][0]['id'] ) &&
 				! empty( $data['recordings'][0]['title'] ) &&
-				preg_replace( '~[^A-Za-z0-9]~', '', $data['recordings'][0]['title'] ) === preg_replace( '~[^A-Za-z0-9]~', '', $track['title'] ) && // Strip away, e.g., curly quotes, etc.
+				strtolower( preg_replace( '~[^A-Za-z0-9]~', '', $data['recordings'][0]['title'] ) ) === strtolower( preg_replace( '~[^A-Za-z0-9]~', '', $track['title'] ) ) && // Strip away, e.g., curly quotes, etc.
 				! empty( $data['recordings'][0]['artist-credit'][0]['name'] ) &&
-				preg_replace( '~[^A-Za-z0-9]~', '', $data['recordings'][0]['artist-credit'][0]['name'] ) === preg_replace( '~[^A-Za-z0-9]~', '', $track['artist'] ) // Still overly strict because what if there are multiple artists, etc.?
+				strtolower( preg_replace( '~[^A-Za-z0-9]~', '', $data['recordings'][0]['artist-credit'][0]['name'] ) ) === strtolower( preg_replace( '~[^A-Za-z0-9]~', '', $track['artist'] ) ) // Still overly strict because what if there are multiple artists, etc.?
 			) {
-				// If we got a result and the artist and track title are a near exact match.
+				// If we got a result _and_ the artist and track title are a
+				// near exact match (we want to prevent accidental mix-ups).
 				$track['mbid'] = $data['recordings'][0]['id']; // Use this as the track's MBID, at least temporarily.
+				update_post_meta( $post_id, 'scrobbble_track_mbid', sanitize_text_field( $data['recordings'][0]['id'] ) ); // For reference.
 			} else {
 				error_log( '[Scrobbble Add-On] Could not find a recording MBID.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			}
@@ -148,12 +150,12 @@ class Plugin {
 		 * library" above.
 		 */
 
-		$artist = urlencode( strtolower( $track['artist'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.urlencode_urlencode
-		$album  = urlencode( strtolower( $track['album'] ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.urlencode_urlencode
+		$artist = rawurlencode( strtolower( $track['artist'] ) );
+		$album  = rawurlencode( strtolower( $track['album'] ) );
 
 		// Search MusicBrainz for the album/single/whatever.
 		$response = wp_safe_remote_get(
-			esc_url_raw( "https://musicbrainz.org/ws/2/release?query=release:{$album}+artist:{$artist}&limit=1&fmt=json" ),
+			esc_url_raw( "https://musicbrainz.org/ws/2/release?query=release:{$album}%20AND%20artist:{$artist}&limit=1&fmt=json" ),
 			array(
 				'user-agent' => 'ScrobbbleForWordPress +' . home_url( '/' ),
 			)
