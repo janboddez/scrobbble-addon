@@ -37,6 +37,8 @@ class Plugin {
 	 * Registers callback functions.
 	 */
 	public function register() {
+		add_action( 'scrobbble_artist', array( $this, 'filter_artist' ) );
+
 		// Runs after a "Scrobble" post is saved.
 		add_action( 'scrobbble_save_track', array( $this, 'add_genres' ), 10, 2 );
 		add_action( 'scrobbble_save_track', array( $this, 'add_release_meta' ), 10, 2 );
@@ -44,6 +46,20 @@ class Plugin {
 		add_action( 'scrobbble_fetch_cover_art', array( $this, 'fetch_cover_art' ), 10, 3 );
 
 		Blocks::register();
+	}
+
+	/**
+	 * Filters artist names.
+	 *
+	 * @param  string $artist Artist.
+	 * @return string         Updated artist.
+	 */
+	public function filter_artist( $artist ) {
+		if ( false !== stripos( $artist, ' feat. ' ) ) {
+			$artist = strtr( $artist, ' feat. ', true );
+		}
+
+		return $artist;
 	}
 
 	/**
