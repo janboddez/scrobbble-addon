@@ -71,7 +71,6 @@ class Plugin {
 			);
 
 			if ( ! empty( $response['body'] ) ) {
-				error_log( print_r( $response['body'], true ) );
 				$data = json_decode( $response['body'], true );
 			}
 
@@ -107,7 +106,6 @@ class Plugin {
 		);
 
 		if ( ! empty( $response['body'] ) ) {
-			error_log( print_r( $response['body'], true ) );
 			$data = json_decode( $response['body'], true );
 		} else {
 			error_log( '[Scrobbble Add-On] Something went wrong.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
@@ -205,8 +203,8 @@ class Plugin {
 		// Get uploads folder.
 		$upload_dir = wp_upload_dir();
 
-		// Looking for the filename (the hash) without an extension.
-		$files = glob( $upload_dir['basedir'] . "/scrobbble-art/{$hash}*" );
+		// Looking for the filename (the hash) with any extension.
+		$files = glob( $upload_dir['basedir'] . "/scrobbble-art/$hash.*" );
 
 		if ( count( $files ) > 0 ) {
 			// Cover art for this album already exists.
@@ -228,7 +226,6 @@ class Plugin {
 		*/
 
 		if ( ! empty( $response['body'] ) ) {
-			error_log( print_r( $response['body'], true ) );
 			$data = json_decode( $response['body'], true );
 		} else {
 			error_log( '[Scrobbble Add-On] Something went wrong.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
@@ -368,7 +365,7 @@ class Plugin {
 
 			if ( ! file_is_valid_image( $file_path ) || ! file_is_displayable_image( $file_path ) ) {
 				// Somehow not a valid image. Delete it.
-				unlink( $file_path );
+				wp_delete_file( $file_path );
 
 				debug_log( '[Scrobbble Add-On] Invalid image file: ' . esc_url_raw( $url ) . '.' );
 				return null;
@@ -383,7 +380,7 @@ class Plugin {
 
 				if ( $file_path !== $result['path'] ) {
 					// The image editor's `save()` method has altered the file path (like, added an extension that wasn't there previously).
-					unlink( $file_path ); // Delete "old" image.
+					wp_delete_file( $file_path ); // Delete "old" image.
 					$file_path = $result['path'];
 				}
 			} else {

@@ -22,6 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require __DIR__ . '/includes/class-blocks.php';
 require __DIR__ . '/includes/class-plugin.php';
+require __DIR__ . '/includes/functions.php';
 
 Plugin::get_instance()
 	->register();
