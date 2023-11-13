@@ -65,6 +65,8 @@ class Blocks {
 				return '';
 			}
 
+			$album = preg_replace( "~^$artist - ~", '', $album );
+
 			if ( defined( 'GLOB_BRACE' ) ) {
 				$hash  = '{' . hash( 'sha256', $artist . $album ) . ',' . hash( 'sha256', 'Various Artists' . $album ) . '}';
 				$files = glob( trailingslashit( $upload_dir['basedir'] ) . "scrobbble-art/$hash.*", GLOB_BRACE );
