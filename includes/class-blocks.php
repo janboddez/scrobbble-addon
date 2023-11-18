@@ -45,6 +45,7 @@ class Blocks {
 
 		$upload_dir = wp_upload_dir();
 
+		// Get custom field.
 		$image = get_post_meta( $block->context['postId'], 'scrobbble_cover_art', true );
 
 		if ( empty( $image ) ) {
@@ -67,27 +68,31 @@ class Blocks {
 
 			$album = preg_replace( "~^$artist - ~", '', $album );
 			$hash  = hash( 'sha256', $artist . $album );
-			$files = glob( trailingslashit( $upload_dir['basedir'] ) . "scrobbble-art/$hash.*" );
 
-			if ( empty( $files[0] ) && defined( 'GLOB_BRACE' ) ) {
-				$hash  = '{' . hash( 'sha256', $artist . $album ) . ',' . hash( 'sha256', 'Various Artists' . $album ) . '}';
-				$files = \glob( trailingslashit( $upload_dir['basedir'] ) . "scrobbble-art/$hash.*", GLOB_BRACE );
-			}
+			// Attempt to get from cache.
+			$transient = get_transient( "scrobbble:$hash:cover" );
+			if ( is_string( $transient ) ) {
+				$image = $transient;
+			} else {
+				$image = '';
 
-			if ( ! empty( $files[0] ) ) {
-				// Recreate URL.
-				$image = str_replace( $upload_dir['basedir'], $upload_dir['baseurl'], $files[0] );
+				// (Slow) Look for the file on disk.
+				$files = glob( trailingslashit( $upload_dir['basedir'] ) . "scrobbble-art/$hash.*" );
+
+				if ( ! empty( $files[0] ) ) {
+					// Recreate URL.
+					$image = str_replace( $upload_dir['basedir'], $upload_dir['baseurl'], $files[0] );
+				}
+
+				// Cache `$image` regardless of the outcome.
+				set_transient( "scrobbble:$hash:cover", $image, MONTH_IN_SECONDS );
+
+				// And add it to the post meta.
+				update_post_meta( $block->context['postId'], 'scrobbble_cover_art', $image );
 			}
 		}
 
 		if ( empty( $image ) ) {
-			return '';
-		}
-
-		$file_path = str_replace( $upload_dir['baseurl'], $upload_dir['basedir'], $image );
-
-		if ( ! is_file( $file_path ) ) {
-			delete_post_meta( $block->context['postId'], 'scrobbble_cover_art' );
 			return '';
 		}
 

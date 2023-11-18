@@ -64,15 +64,25 @@ class Plugin {
 			return $now;
 		}
 
-		$hash       = hash( 'sha256', $now['artist'] . $now['album'] );
-		$upload_dir = wp_upload_dir();
+		$hash = hash( 'sha256', $now['artist'] . $now['album'] );
 
-		// Look for a file that starts with our hash.
-		$files = \Scrobbble\AddOn\glob( trailingslashit( $upload_dir['basedir'] ) . "scrobbble-art/$hash.*" );
+		// Get cover from cache.
+		$transient = get_transient( "scrobbble:$hash:cover" );
+		if ( is_string( $transient ) ) {
+			$now['cover'] = $transient;
+			return $now;
+		}
+
+		// (Slow) Look for a file that starts with our hash.
+		$upload_dir = wp_upload_dir();
+		$files      = glob( trailingslashit( $upload_dir['basedir'] ) . "scrobbble-art/$hash.*" );
 
 		if ( ! empty( $files[0] ) ) {
 			// Recreate URL.
-			$now['cover'] = str_replace( $upload_dir['basedir'], $upload_dir['baseurl'], $files[0] );
+			$cover = str_replace( $upload_dir['basedir'], $upload_dir['baseurl'], $files[0] );
+
+			set_transient( "scrobbble:$hash:cover", $cover, MONTH_IN_SECONDS );
+			$now['cover'] = $cover;
 		}
 
 		return $now;
@@ -86,7 +96,7 @@ class Plugin {
 	 */
 	public function filter_artist( $artist ) {
 		if ( false !== stripos( $artist, ' feat. ' ) ) {
-			$artist = strstr( $artist, ' feat. ', true );
+			$artist = stristr( $artist, ' feat. ', true );
 		}
 
 		return $artist;
@@ -196,7 +206,7 @@ class Plugin {
 
 		// Search MusicBrainz for the album/single/whatever.
 		$response = wp_safe_remote_get(
-			esc_url_raw( "https://musicbrainz.org/ws/2/release?query=release:{$album}&limit=5&fmt=json" ),
+			esc_url_raw( "https://musicbrainz.org/ws/2/release?query=release:{$album}&limit=10&fmt=json" ),
 			array(
 				'user-agent' => 'ScrobbbleForWordPress +' . home_url( '/' ),
 			)
