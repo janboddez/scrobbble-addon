@@ -3,7 +3,7 @@
 	"title": "Cover Art",
 	"name": "scrobbble/cover-art",
 	"category": "theme",
-	"icon": "playlist-audio",
+	"icon": "album",
 	"editorScript": "file:./block.js",
 	"usesContext": [ "postId" ],
 	"textdomain": "scrobbble"

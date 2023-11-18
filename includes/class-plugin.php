@@ -125,12 +125,16 @@ class Plugin {
 				! empty( $data['recordings'][0]['title'] ) &&
 				strtolower( preg_replace( '~[^A-Za-z0-9]~', '', $data['recordings'][0]['title'] ) ) === strtolower( preg_replace( '~[^A-Za-z0-9]~', '', $track['title'] ) ) && // Strip away, e.g., curly quotes, etc.
 				! empty( $data['recordings'][0]['artist-credit'][0]['name'] ) &&
-				strtolower( preg_replace( '~[^A-Za-z0-9]~', '', $data['recordings'][0]['artist-credit'][0]['name'] ) ) === strtolower( preg_replace( '~[^A-Za-z0-9]~', '', $track['artist'] ) ) // Still overly strict because what if there are multiple artists, etc.?
+				strtolower( preg_replace( '~[^A-Za-z0-9]~', '', $data['recordings'][0]['artist-credit'][0]['name'] ) ) === strtolower( preg_replace( '~[^A-Za-z0-9]~', '', $track['artist'] ) )
 			) {
-				// If we got a result _and_ the artist and track title are a
-				// near exact match (we want to prevent accidental mix-ups).
-				$track['mbid'] = $data['recordings'][0]['id']; // Use this as the track's MBID, at least temporarily.
-				update_post_meta( $post_id, 'scrobbble_track_mbid', sanitize_text_field( $data['recordings'][0]['id'] ) ); // For reference.
+				/*
+				 * If we got a result _and_ the artist and track title are a
+				 * near exact match (we want to prevent accidental mix-ups).
+				 * Still, this approach is probably overly strict, because it
+				 * might exclude tracks with "featured" artists, and so on.
+				 */
+				$track['mbid'] = sanitize_text_field( $data['recordings'][0]['id'] ); // Use this as the track's MBID, at least temporarily.
+				update_post_meta( $post_id, 'scrobbble_track_mbid', $track['mbid'] ); // For reference.
 			} else {
 				error_log( '[Scrobbble Add-On] Could not find a recording MBID.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			}
@@ -143,7 +147,7 @@ class Plugin {
 
 		error_log( '[Scrobbble Add-On] Getting genre information from MusicBrainz.org.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 
-		// Get the genres, if any,for this track. Note that these can be quite generic; some (but not all?) tracks have more accurate genre info in their tags.
+		// Get the genres, if any, for this track. Note that these can be quite generic; some (but not all?) tracks have more accurate genre info in their tags.
 		$response = wp_safe_remote_get(
 			esc_url_raw( "https://musicbrainz.org/ws/2/recording/{$track['mbid']}?fmt=json&inc=genres" ),
 			array(
@@ -182,24 +186,17 @@ class Plugin {
 	public function add_release_meta( $post_id, $track ) {
 		error_log( '[Scrobbble Add-On] Getting album data.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 
-		// @todo: How do we link an image? Term metadata, or do we just use a hash?
-		// We could use this as the filename for the cover. Not all albums have a
-		// MusicBrainz ID, so this would work even then. And it's easier than
-		// generating and keeping track of yet another unique ID.
-		$hash = hash( 'sha256', $track['artist'] . $track['album'] );
-
-		/**
+		/*
 		 * So, in a previous version, we would store album (or release) MBIDs in a
 		 * separate table. But really, we should probably add them to our "monster
 		 * library" above.
 		 */
 
-		$artist = rawurlencode( strtolower( $track['artist'] ) );
-		$album  = rawurlencode( strtolower( $track['album'] ) );
+		$album = rawurlencode( $track['album'] );
 
 		// Search MusicBrainz for the album/single/whatever.
 		$response = wp_safe_remote_get(
-			esc_url_raw( "https://musicbrainz.org/ws/2/release?query=release:{$album}%20AND%20artist:{$artist}&limit=1&fmt=json" ),
+			esc_url_raw( "https://musicbrainz.org/ws/2/release?query=release:{$album}&limit=5&fmt=json" ),
 			array(
 				'user-agent' => 'ScrobbbleForWordPress +' . home_url( '/' ),
 			)
@@ -212,18 +209,36 @@ class Plugin {
 			error_log( print_r( $response, true ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log,WordPress.PHP.DevelopmentFunctions.error_log_print_r
 		}
 
-		// Store release MBID.
-		if ( ! empty( $data['releases'][0]['id'] ) ) {
+		foreach ( $data['releases'] as $release ) {
+			if ( ! empty( $release['artist-credit'][0]['name'] ) && strtolower( $track['artist'] ) === strtolower( $release['artist-credit'][0]['name'] ) ) {
+				$match = $release;
+				break;
+			}
+		}
+
+		if ( empty( $match ) ) {
+			// Might be a compilation album or something.
+			foreach ( $data['releases'] as $release ) {
+				if ( ! empty( $release['artist-credit'][0]['name'] ) && 'various artists' === strtolower( $release['artist-credit'][0]['name'] ) ) {
+					$match = $release;
+					break;
+				}
+			}
+		}
+
+		if ( ! empty( $match['id'] ) ) {
+			if ( 'various artists' === strtolower( $match['artist-credit'][0]['name'] ) ) {
+				$hash = hash( 'sha256', 'Various Artists' . $track['album'] );
+			} else {
+				$hash = hash( 'sha256', $track['artist'] . $track['album'] );
+			}
+
 			error_log( '[Scrobbble Add-On] Got album MBID.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			$album_mbid = $data['releases'][0]['id']; // Kinda hoping this is the correct one. If so, with this, we should be able to get cover art, and, e.g., a Discogs URL.
+			$album_mbid = $match['id']; // Kinda hoping this is the correct one. If so, with this, we should be able to get cover art, and, e.g., a Discogs URL.
 		}
 
 		if ( ! empty( $album_mbid ) ) {
 			$album_mbid = sanitize_text_field( $album_mbid );
-			// Since each "listen" corresponds with one track, from one "album,"
-			// it's "safe" to store this as post meta (and not term meta). An
-			// "album" term, after all, could correspond to more than one release.
-			// Like, there could be different versions and such.
 			update_post_meta( $post_id, 'scrobbble_album_mbid', $album_mbid );
 
 			// Fetch cover art.
@@ -267,9 +282,9 @@ class Plugin {
 		);
 
 		/*
-		* There may not be cover art for a specific release. But the "release
-		* group" might have art, or a "front."
-		*/
+		 * There may not be cover art for a specific release. But the "release
+		 * group" might have art, or a "front."
+		 */
 
 		if ( ! empty( $response['body'] ) ) {
 			$data = json_decode( $response['body'], true );
@@ -386,7 +401,7 @@ class Plugin {
 			$body = wp_remote_retrieve_body( $response );
 
 			if ( empty( $body ) ) {
-				debug_log( '[Scrobbble Add-On] Could not download the image at ' . esc_url_raw( $url ) . '.' );
+				error_log( '[Scrobbble Add-On] Could not download the image at ' . esc_url_raw( $url ) . '.' );
 				return null;
 			}
 
@@ -400,7 +415,7 @@ class Plugin {
 
 			// Write image data.
 			if ( ! $wp_filesystem->put_contents( $file_path, $body, 0644 ) ) {
-				debug_log( '[Scrobbble Add-On] Could not save image file: ' . $file_path . '.' );
+				error_log( '[Scrobbble Add-On] Could not save image file: ' . $file_path . '.' );
 				return null;
 			}
 
@@ -413,7 +428,7 @@ class Plugin {
 				// Somehow not a valid image. Delete it.
 				wp_delete_file( $file_path );
 
-				debug_log( '[Scrobbble Add-On] Invalid image file: ' . esc_url_raw( $url ) . '.' );
+				error_log( '[Scrobbble Add-On] Invalid image file: ' . esc_url_raw( $url ) . '.' );
 				return null;
 			}
 
@@ -430,7 +445,7 @@ class Plugin {
 					$file_path = $result['path'];
 				}
 			} else {
-				debug_log( '[Scrobbble Add-On] Could not reisize ' . $file_path . ': ' . $image->get_error_message() . '.' );
+				error_log( '[Scrobbble Add-On] Could not reisize ' . $file_path . ': ' . $image->get_error_message() . '.' );
 			}
 
 			// And return the local URL.
