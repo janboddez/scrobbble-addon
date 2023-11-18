@@ -82,13 +82,13 @@ class Blocks {
 				if ( ! empty( $files[0] ) ) {
 					// Recreate URL.
 					$image = str_replace( $upload_dir['basedir'], $upload_dir['baseurl'], $files[0] );
+
+					// And add it to the post meta.
+					update_post_meta( $block->context['postId'], 'scrobbble_cover_art', $image );
 				}
 
 				// Cache `$image` regardless of the outcome.
 				set_transient( "scrobbble:$hash:cover", $image, MONTH_IN_SECONDS );
-
-				// And add it to the post meta.
-				update_post_meta( $block->context['postId'], 'scrobbble_cover_art', $image );
 			}
 		}
 
