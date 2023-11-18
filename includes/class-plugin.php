@@ -401,7 +401,7 @@ class Plugin {
 			$body = wp_remote_retrieve_body( $response );
 
 			if ( empty( $body ) ) {
-				error_log( '[Scrobbble Add-On] Could not download the image at ' . esc_url_raw( $url ) . '.' );
+				error_log( '[Scrobbble Add-On] Could not download the image at ' . esc_url_raw( $url ) . '.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				return null;
 			}
 
@@ -415,7 +415,7 @@ class Plugin {
 
 			// Write image data.
 			if ( ! $wp_filesystem->put_contents( $file_path, $body, 0644 ) ) {
-				error_log( '[Scrobbble Add-On] Could not save image file: ' . $file_path . '.' );
+				error_log( '[Scrobbble Add-On] Could not save image file: ' . $file_path . '.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				return null;
 			}
 
@@ -428,7 +428,7 @@ class Plugin {
 				// Somehow not a valid image. Delete it.
 				wp_delete_file( $file_path );
 
-				error_log( '[Scrobbble Add-On] Invalid image file: ' . esc_url_raw( $url ) . '.' );
+				error_log( '[Scrobbble Add-On] Invalid image file: ' . esc_url_raw( $url ) . '.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				return null;
 			}
 
@@ -445,7 +445,7 @@ class Plugin {
 					$file_path = $result['path'];
 				}
 			} else {
-				error_log( '[Scrobbble Add-On] Could not reisize ' . $file_path . ': ' . $image->get_error_message() . '.' );
+				error_log( '[Scrobbble Add-On] Could not resize ' . $file_path . ': ' . $image->get_error_message() . '.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			}
 
 			// And return the local URL.
