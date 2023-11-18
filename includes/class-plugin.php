@@ -37,7 +37,8 @@ class Plugin {
 	 * Registers callback functions.
 	 */
 	public function register() {
-		add_action( 'scrobbble_artist', array( $this, 'filter_artist' ) );
+		add_filter( 'scrobbble_artist', array( $this, 'filter_artist' ) );
+		add_filter( 'scrobbble_nowplaying', array( $this, 'filter_nowplaying' ) );
 
 		// Runs after a "Scrobble" post is saved.
 		add_action( 'scrobbble_save_track', array( $this, 'add_genres' ), 10, 2 );
@@ -49,6 +50,35 @@ class Plugin {
 	}
 
 	/**
+	 * Filters currently playing track.
+	 *
+	 * @param  array $now Currently playing track data.
+	 * @return array      Updated track data.
+	 */
+	public function filter_nowplaying( $now ) {
+		if ( empty( $now['artist'] ) ) {
+			return $now;
+		}
+
+		if ( empty( $now['album'] ) ) {
+			return $now;
+		}
+
+		$hash       = hash( 'sha256', $now['artist'] . $now['album'] );
+		$upload_dir = wp_upload_dir();
+
+		// Look for a file that starts with our hash.
+		$files = \Scrobbble\AddOn\glob( trailingslashit( $upload_dir['basedir'] ) . "scrobbble-art/$hash.*" );
+
+		if ( ! empty( $files[0] ) ) {
+			// Recreate URL.
+			$now['cover'] = str_replace( $upload_dir['basedir'], $upload_dir['baseurl'], $files[0] );
+		}
+
+		return $now;
+	}
+
+	/**
 	 * Filters artist names.
 	 *
 	 * @param  string $artist Artist.
@@ -56,7 +86,7 @@ class Plugin {
 	 */
 	public function filter_artist( $artist ) {
 		if ( false !== stripos( $artist, ' feat. ' ) ) {
-			$artist = strtr( $artist, ' feat. ', true );
+			$artist = strstr( $artist, ' feat. ', true );
 		}
 
 		return $artist;
