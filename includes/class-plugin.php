@@ -202,11 +202,12 @@ class Plugin {
 		 * library" above.
 		 */
 
-		$album = rawurlencode( $track['album'] );
+		$album  = rawurlencode( $track['album'] );
+		$artist = rawurlencode( $track['artist'] );
 
 		// Search MusicBrainz for the album/single/whatever.
 		$response = wp_safe_remote_get(
-			esc_url_raw( "https://musicbrainz.org/ws/2/release?query=release:{$album}&limit=10&fmt=json" ),
+			esc_url_raw( "https://musicbrainz.org/ws/2/release?query=release:{$album}%20artist:{$artist}&limit=10&fmt=json" ),
 			array(
 				'user-agent' => 'ScrobbbleForWordPress +' . home_url( '/' ),
 			)
@@ -252,6 +253,7 @@ class Plugin {
 			update_post_meta( $post_id, 'scrobbble_album_mbid', $album_mbid );
 
 			// Fetch cover art.
+			error_log( '[Scrobbble Add-On] Scheduling to fetch cover art.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			wp_schedule_single_event( time(), 'scrobbble_fetch_cover_art', array( $album_mbid, $hash, $post_id ) );
 		}
 	}
@@ -280,9 +282,14 @@ class Plugin {
 		if ( count( $files ) > 0 ) {
 			// Cover art for this album already exists.
 			error_log( '[Scrobbble Add-On] Cover art already exists.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+			// Add it to the post's meta.
+			$image = str_replace( $upload_dir['basedir'], $upload_dir['baseurl'], $files[0] );
+			update_post_meta( $post_id, 'scrobbble_cover_art', $image );
 			return;
 		}
 
+		error_log( '[Scrobbble Add-On] Looking for cover art in the Cover Art Archive.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		// Search for the album/single/whatever.
 		$response = wp_safe_remote_get(
 			esc_url_raw( "http://coverartarchive.org/release/{$album_mbid}" ), // @todo: Alternative sources? What if we don't have an MBID?
@@ -296,7 +303,7 @@ class Plugin {
 		 * group" might have art, or a "front."
 		 */
 
-		if ( ! empty( $response['body'] ) ) {
+		if ( ! is_wp_error( $response ) && ! empty( $response['body'] ) ) {
 			$data = json_decode( $response['body'], true );
 		} else {
 			error_log( '[Scrobbble Add-On] Something went wrong.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
