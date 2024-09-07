@@ -123,10 +123,11 @@ class Plugin {
 				esc_url_raw( "https://musicbrainz.org/ws/2/recording?query=work:{$title}%20AND%20release:{$album}%20AND%20artist:{$artist}&limit=1&fmt=json" ),
 				array(
 					'user-agent' => 'ScrobbbleForWordPress +' . home_url( '/' ),
+					'timeout'    => 15,
 				)
 			);
 
-			if ( ! empty( $response['body'] ) ) {
+			if ( ! is_wp_error( $response ) && ! empty( $response['body'] ) ) {
 				$data = json_decode( $response['body'], true );
 			}
 
@@ -162,10 +163,11 @@ class Plugin {
 			esc_url_raw( "https://musicbrainz.org/ws/2/recording/{$track['mbid']}?fmt=json&inc=genres" ),
 			array(
 				'user-agent' => 'ScrobbbleForWordPress +' . home_url( '/' ),
+				'timeout'    => 15,
 			)
 		);
 
-		if ( ! empty( $response['body'] ) ) {
+		if ( ! is_wp_error( $response ) && ! empty( $response['body'] ) ) {
 			$data = json_decode( $response['body'], true );
 		} else {
 			error_log( '[Scrobbble Add-On] Something went wrong.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
@@ -210,24 +212,27 @@ class Plugin {
 			esc_url_raw( "https://musicbrainz.org/ws/2/release?query=release:{$album}%20artist:{$artist}&limit=10&fmt=json" ),
 			array(
 				'user-agent' => 'ScrobbbleForWordPress +' . home_url( '/' ),
+				'timeout'    => 15,
 			)
 		);
 
-		if ( ! empty( $response['body'] ) ) {
+		if ( ! is_wp_error( $response ) && ! empty( $response['body'] ) ) {
 			$data = json_decode( $response['body'], true );
 		} else {
 			error_log( '[Scrobbble Add-On] Something went wrong.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			error_log( print_r( $response, true ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log,WordPress.PHP.DevelopmentFunctions.error_log_print_r
 		}
 
-		foreach ( $data['releases'] as $release ) {
-			if ( ! empty( $release['artist-credit'][0]['name'] ) && strtolower( $track['artist'] ) === strtolower( $release['artist-credit'][0]['name'] ) ) {
-				$match = $release;
-				break;
+		if ( ! empty( $data['releases'] ) ) {
+			foreach ( $data['releases'] as $release ) {
+				if ( ! empty( $release['artist-credit'][0]['name'] ) && strtolower( $track['artist'] ) === strtolower( $release['artist-credit'][0]['name'] ) ) {
+					$match = $release;
+					break;
+				}
 			}
 		}
 
-		if ( empty( $match ) ) {
+		if ( empty( $match ) && ! empty( $data['releases'] ) ) {
 			// Might be a compilation album or something.
 			foreach ( $data['releases'] as $release ) {
 				if ( ! empty( $release['artist-credit'][0]['name'] ) && 'various artists' === strtolower( $release['artist-credit'][0]['name'] ) ) {
@@ -295,6 +300,7 @@ class Plugin {
 			esc_url_raw( "http://coverartarchive.org/release/{$album_mbid}" ), // @todo: Alternative sources? What if we don't have an MBID?
 			array(
 				'user-agent' => 'ScrobbbleForWordPress +' . home_url( '/' ),
+				'timeout'    => 15,
 			)
 		);
 
@@ -318,10 +324,11 @@ class Plugin {
 				esc_url_raw( "https://musicbrainz.org/ws/2/release/{$album_mbid}?fmt=json&inc=release-groups" ),
 				array(
 					'user-agent' => 'ScrobbbleForWordPress +' . home_url( '/' ),
+					'timeout'    => 15,
 				)
 			);
 
-			if ( ! empty( $response['body'] ) ) {
+			if ( ! is_wp_error( $response ) && ! empty( $response['body'] ) ) {
 				$release_group = json_decode( $response['body'], true );
 			} else {
 				error_log( '[Scrobbble Add-On] Something went wrong.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
@@ -335,10 +342,11 @@ class Plugin {
 					esc_url_raw( "http://coverartarchive.org/release-group/{$release_group['release-group']['id']}" ),
 					array(
 						'user-agent' => 'ScrobbbleForWordPress +' . home_url( '/' ),
+						'timeout'    => 15,
 					)
 				);
 
-				if ( ! empty( $response['body'] ) ) {
+				if ( ! is_wp_error( $response ) && ! empty( $response['body'] ) ) {
 					$data = json_decode( $response['body'], true );
 				} else {
 					// Still not. Return empty-handed.
@@ -412,6 +420,7 @@ class Plugin {
 				array(
 					'headers'    => array( 'Accept' => 'image/*' ),
 					'user-agent' => 'ScrobbbleForWordPress +' . home_url( '/' ),
+					'timeout'    => 15,
 				)
 			);
 
