@@ -74,17 +74,20 @@ class Blocks {
 			if ( is_string( $transient ) ) {
 				$image = $transient;
 			} else {
-				$image = '';
+				$image = get_post_meta( $block->context['postId'], 'scrobbble_cover_art', $image );
 
-				// (Slow) Look for the file on disk.
-				$files = glob( trailingslashit( $upload_dir['basedir'] ) . "scrobbble-art/$hash.*" );
+				if ( empty( $image ) ) {
+					// (Slow) Look for the file on disk.
+					$dir   = 'scrobbble-art/' . substr( $hash, 0, 2 ) . '/' . substr( $hash, 2, 2 );
+					$files = glob( trailingslashit( $upload_dir['basedir'] ) . "$dir/$hash.*" );
 
-				if ( ! empty( $files[0] ) ) {
-					// Recreate URL.
-					$image = str_replace( $upload_dir['basedir'], $upload_dir['baseurl'], $files[0] );
+					if ( ! empty( $files[0] ) ) {
+						// Recreate URL.
+						$image = str_replace( $upload_dir['basedir'], $upload_dir['baseurl'], $files[0] );
 
-					// And add it to the post meta.
-					update_post_meta( $block->context['postId'], 'scrobbble_cover_art', $image );
+						// And add it to the post meta.
+						update_post_meta( $block->context['postId'], 'scrobbble_cover_art', $image );
+					}
 				}
 
 				// Cache `$image` regardless of the outcome.

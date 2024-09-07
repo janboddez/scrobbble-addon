@@ -75,7 +75,8 @@ class Plugin {
 
 		// (Slow) Look for a file that starts with our hash.
 		$upload_dir = wp_upload_dir();
-		$files      = glob( trailingslashit( $upload_dir['basedir'] ) . "scrobbble-art/$hash.*" );
+		$dir        = 'scrobbble-art/' . substr( $hash, 0, 2 ) . '/' . substr( $hash, 2, 2 );
+		$files      = glob( trailingslashit( $upload_dir['basedir'] ) . "$dir/$hash.*" );
 
 		if ( ! empty( $files[0] ) ) {
 			// Recreate URL.
@@ -282,7 +283,8 @@ class Plugin {
 		$upload_dir = wp_upload_dir();
 
 		// Looking for the filename (the hash) with any extension.
-		$files = glob( $upload_dir['basedir'] . "/scrobbble-art/$hash.*" );
+		$dir   = 'scrobbble-art/' . substr( $hash, 0, 2 ) . '/' . substr( $hash, 2, 2 );
+		$files = glob( $upload_dir['basedir'] . "/$dir/$hash.*" );
 
 		if ( count( $files ) > 0 ) {
 			// Cover art for this album already exists.
@@ -374,11 +376,14 @@ class Plugin {
 					return;
 				}
 
+				$dir  = 'scrobbble-art/';
+				$dir .= substr( $hash, 0, 2 ) . '/' . substr( $hash, 2, 2 );
+
 				$file_ext = pathinfo( $cover_art, PATHINFO_EXTENSION );
 				$filename = $hash . ( ! empty( $file_ext ) ? '.' . $file_ext : '' );
 
 				error_log( '[Scrobbble Add-On] Attempting to download the file at ' . $cover_art . '.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-				$local_url = $this->store_image( $cover_art, $filename, 'scrobbble-art' );
+				$local_url = $this->store_image( $cover_art, $filename, $dir );
 
 				if ( ! empty( $local_url ) && 0 !== $post_id ) {
 					update_post_meta( $post_id, 'scrobbble_cover_art', $local_url );
